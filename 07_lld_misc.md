@@ -1,4 +1,4 @@
-# LLD Miscellaneous: Multithreading, Concurrency & More
+# LLD Misc: Concurrency, Synchronization, and Resilient System Design
 
 ## Table of Contents
 
@@ -31,6 +31,11 @@
 27. [Producer-Consumer Problem](#producer-consumer-problem)
 28. [Dependency Injection](#dependency-injection)
 29. [Exception Handling](#exception-handling)
+30. [Building Resilient Systems](#building-resilient-systems)
+31. [Best Practices in LLD](#best-practices-in-lld)
+32. [Database Design and Integration in LLD](#database-design-and-integration-in-lld)
+33. [Strategic Guide: Approaching an LLD Interview](#strategic-guide-approaching-an-lld-interview)
+34. [FAQs and Common Doubts](#faqs-and-common-doubts)
 
 ---
 
@@ -254,11 +259,7 @@ without a single instruction running simultaneously in parallel.
 | IPC is more complex — requires mechanisms like sockets or shared files. | Communication between threads is simple as they share the same memory space. |
 | Considered "heavyweight" — substantial overhead for creation, execution, and switching. | "Lightweight" — minimal overhead for creation and context switching. |
 | A crash in one process generally does not affect others. | A crash in one thread can potentially affect other threads within the same process. |
-| Example: A PostgreSQL database instance runs as a separate process. | Example: Within a single Chrome tab process, separate threads handle rendering, JavaScript execution, and network I/O concurrently. |
-
-> **Correction:** Chrome actually uses a **multi-process** architecture where each tab typically runs as
-> its own separate OS process (for isolation and fault tolerance), not as a thread within a single process.
-> The threads exist *within* each tab's process for tasks like rendering, JS, and networking.
+| Example: A PostgreSQL database instance runs as a separate process. | Example: Individual tabs in Chrome, where each tab is a thread within the browser process. |
 
 ---
 
@@ -524,16 +525,26 @@ if needed.
 A limitation of `Runnable` is that `run()` cannot return a value (it is `void`). If you need to return a result
 (e.g., an ETA string), you cannot do so directly. This is where the `Callable` interface comes in.
 
+---
+
 ### Way 3: Callable Interface and Future
 
-In Java, the Callable interface provides an enhanced way to implement multithreading when you need tasks to return a result. Unlike the previously discussed methods, which do not return any result, Callable allows the thread to return a value once the task completes. However, since the run() method of Runnable cannot return a result (it’s void), the Callable interface provides a call() method, which can return any type of value.
+In Java, the **Callable** interface provides an enhanced way to implement multithreading when you need tasks
+to return a result. Unlike the previously discussed methods, which do not return any result, **Callable**
+allows the thread to return a value once the task completes. Since `run()` of `Runnable` cannot return a
+result (it is `void`), the **Callable** interface provides a `call()` method, which can return any type of
+value.
 
-In addition, Future is an interface that represents the result of an asynchronous computation. It provides methods to check the status of a task and retrieve the result once it’s available, thus allowing you to avoid the limitations of the Thread and Runnable approaches.
+In addition, **Future** is an interface that represents the result of an asynchronous computation. It
+provides methods to check the status of a task and retrieve the result once it is available, thus allowing
+you to avoid the limitations of the Thread and Runnable approaches.
 
-ExecutorService: While you can directly use Thread with Callable, it's recommended to use ExecutorService for better thread management. The ExecutorService provides a method called submit() to submit a Callable task and returns a Future object that can be used to retrieve the result later.
+**ExecutorService:** While you can directly use `Thread` with `Callable`, it is recommended to use
+**ExecutorService** for better thread management. The **ExecutorService** provides a method called
+`submit()` to submit a Callable task and returns a `Future` object that can be used to retrieve the result
+later.
 
-
-// CODE
+```java
 package com.karthik.lld_basics.threads;
 
 import java.util.concurrent.Callable;
@@ -1360,27 +1371,15 @@ This is the lock **synchronized** methods and block use.
 
 #### Granularity
 
-| synchronized Instance Method |
-| --- |
-| Coarse (locks all synchronized instance methods on that object) |
-
-| synchronized Static Method |
-| --- |
-| Coarse (locks all synchronized static methods on that class) |
-
-| synchronized(obj) Block |
-| --- |
-| Fine (locks only the specific block, allowing parallel execution of other blocks) |
+| synchronized Instance Method | synchronized Static Method | synchronized(obj) Block |
+| --- | --- | --- |
+| Coarse (locks all synchronized instance methods on that object) | Coarse (locks all synchronized static methods on that class) | Fine (locks only the specific block, allowing parallel execution of other blocks) |
 
 #### Primary Use Case
 
-| synchronized Instance Method | synchronized Static Method |
-| --- | --- |
-| Thread-safe mutation of instance variables. | Thread-safe mutation of static/global variables. |
-
-| synchronized(obj) Block |
-| --- |
-| Minimizing lock contention and avoiding external deadlocks. |
+| synchronized Instance Method | synchronized Static Method | synchronized(obj) Block |
+| --- | --- | --- |
+| Thread-safe mutation of instance variables. | Thread-safe mutation of static/global variables. | Minimizing lock contention and avoiding external deadlocks. |
 
 #### Drawback
 
@@ -1693,33 +1692,13 @@ control are essential.
 
 ### Lock vs Mutex
 
-<table>
-<thead>
-<tr><th>Lock</th><th>Mutex</th></tr>
-</thead>
-<tbody>
-<tr>
-<td>A general term used to achieve mutual exclusion in concurrent programming.</td>
-<td>A specific type of lock that enforces ownership semantics.</td>
-</tr>
-<tr>
-<td>Lock enforcement is not always strict, i.e., any thread may release the lock.</td>
-<td>Only the thread that acquires the mutex can release it.</td>
-</tr>
-<tr>
-<td>Often implemented using the <strong>synchronized</strong> keyword in Java.</td>
-<td>Implemented using constructs like <strong>ReentrantLock</strong> in Java, which behaves like a mutex.</td>
-</tr>
-<tr>
-<td>In programming, one thread might unlock what another thread locked.</td>
-<td>Only the thread that locked it is allowed to unlock it, ensuring ownership consistency.</td>
-</tr>
-<tr>
-<td>Real-life analogy: Public washroom – anyone can lock or unlock.</td>
-<td>Real-life analogy: Your home – only you (owner) have the key to lock/unlock.</td>
-</tr>
-</tbody>
-</table>
+| Lock | Mutex |
+| --- | --- |
+| A general term used to achieve mutual exclusion in concurrent programming. | A specific type of lock that enforces ownership semantics. |
+| Lock enforcement is not always strict, i.e., any thread may release the lock. | Only the thread that acquires the mutex can release it. |
+| Often implemented using the **synchronized** keyword in Java. | Implemented using constructs like **ReentrantLock** in Java, which behaves like a mutex. |
+| In programming, one thread might unlock what another thread locked. | Only the thread that locked it is allowed to unlock it, ensuring ownership consistency. |
+| Real-life analogy: Public washroom – anyone can lock or unlock. | Real-life analogy: Your home – only you (owner) have the key to lock/unlock. |
 
 ### ReentrantLock
 
@@ -1729,30 +1708,14 @@ times ("re-enter") without deadlocking—hence reentrant.
 
 #### When Should You Use It?
 
-<table>
-<thead>
-<tr><th>Use Case</th><th>Why ReentrantLock Helps</th></tr>
-</thead>
-<tbody>
-<tr>
-<td>Explicit control over locking and unlocking</td>
-<td>You can decide exactly when to acquire and release the lock, unlike <strong>synchronized</strong> which is
-block-scoped.</td>
-</tr>
-<tr>
-<td>Attempt to acquire a lock with or without timeout</td>
-<td>Methods like <code>tryLock()</code> and <code>tryLock(long, TimeUnit)</code> prevent threads from being
-blocked indefinitely.</td>
-</tr>
-<tr>
-<td>Fine-grained synchronization</td>
-<td>Enables locking only the necessary portions of code, reducing contention and increasing concurrency.</td>
-</tr>
-</tbody>
-</table>
+| Use Case | Why ReentrantLock Helps |
+| --- | --- |
+| Explicit control over locking and unlocking | You can decide exactly when to acquire and release the lock, unlike **synchronized** which is block-scoped. |
+| Attempt to acquire a lock with or without timeout | Methods like `tryLock()` and `tryLock(long, TimeUnit)` prevent threads from being blocked indefinitely. |
+| Fine-grained synchronization | Enables locking only the necessary portions of code, reducing contention and increasing concurrency. |
 
 ```java
-s MutexThreads {
+class MutexThreads {
   public void run() {
     System.err.println("Running MutexThreads to demonstrate locks...");
     TicketBooking ticketBooking = new TicketBooking();
@@ -3465,52 +3428,76 @@ locks Account B.
    Example: A to B to C to D back to A—each train waits for the next segment occupied by the other, forming a
    perfect cycle.
 
---- continued
-
 > **Key Insight:** To PREVENT deadlocks, we must break at least one of these four conditions. This principle
 > forms the foundation of all deadlock prevention techniques.
-i.e no deadlocks mean premeptive or break circular dependecies or no one holds and then acquires or no mutual exclusion. usually, mutual exclusion we cant break because that might lead to data corruption.
+
+> **Personal note:** No deadlocks means: preemptive scheduling, OR break circular dependencies, OR no one
+> holds-and-then-acquires, OR no mutual exclusion. Usually, mutual exclusion we can't break because that
+> might lead to data corruption.
+
 ---
 
-Dining Philosophers Problem
-The Dining Philosophers Problem is a classic concurrency problem that illustrates how deadlock can occur when multiple threads (or processes) compete for limited shared resources.
+### Dining Philosophers Problem
 
-Imagine five philosophers sitting around a circular dining table. Between each pair of philosophers lies a single fork, meaning there are five forks in total. Philosophers follow a routine:
-Think for some time,
-Get hungry,
-Pick up the two forks (left and right),
-Eat,
-Then put down the forks and go back to thinking.
+The **Dining Philosophers Problem** is a classic concurrency problem that illustrates how deadlock can occur
+when multiple threads (or processes) compete for limited shared resources.
+
+Imagine five philosophers sitting around a circular dining table. Between each pair of philosophers lies a
+single fork, meaning there are five forks in total. Philosophers follow a routine:
+
+- Think for some time,
+- Get hungry,
+- Pick up the two forks (left and right),
+- Eat,
+- Then put down the forks and go back to thinking.
+
 Each philosopher needs both forks (the one on their left and right) to eat.
 
-The Problem
-The problem arises if every philosopher picks up their left fork at the same time, they'll all be waiting for the right fork - which is held by their neighbor. Since none of them is willing to put down the left fork they already picked up, they all wait indefinitely.
+#### The Problem
+
+The problem arises if every philosopher picks up their left fork at the same time — they will all be waiting
+for the right fork, which is held by their neighbor. Since none of them is willing to put down the left fork
+they already picked up, they all wait indefinitely.
 
 This results in a deadlock, where:
-Every philosopher holds one fork,
-Everyone waits for another fork that never becomes available,
-No one eats,
-The program freezes.
 
-How It Demonstrates Deadlock
+- Every philosopher holds one fork,
+- Everyone waits for another fork that never becomes available,
+- No one eats,
+- The program freezes.
+
+#### How It Demonstrates Deadlock
+
 The dining philosophers scenario fulfills all four Coffman conditions:
-Mutual Exclusion: A fork can be used by only one philosopher at a time.
-Hold and Wait: Each philosopher holds one fork and waits for the other.
-No Preemption: Forks can't be forcibly taken from a neighbor.
-Circular Wait: Each philosopher waits for a fork held by the philosopher to their right, forming a cycle.
 
-This elegant but simple setup clearly shows how deadlocks can occur when multiple entities compete for limited shared resources in an uncoordinated way.
+- **Mutual Exclusion:** A fork can be used by only one philosopher at a time.
+- **Hold and Wait:** Each philosopher holds one fork and waits for the other.
+- **No Preemption:** Forks can't be forcibly taken from a neighbor.
+- **Circular Wait:** Each philosopher waits for a fork held by the philosopher to their right, forming a
+  cycle.
 
-Deadlock Prevention Techniques
-1. Lock Ordering
-The idea is simple yet powerful:
-Ensure that all threads acquire locks in a predefined global order, regardless of their execution context.
-Condition Broken: Circular Wait
-If threads always acquire multiple locks in the same sequence (say A to B to C), the possibility of forming a cycle is eliminated, because no thread will ever wait on a lock held by another while holding a higher-order lock.
+This elegant but simple setup clearly shows how deadlocks can occur when multiple entities compete for
+limited shared resources in an uncoordinated way.
 
-R1 transfers to r2 and r2 transfers to r1.
+---
 
- Resource[] locks = new Resource[] {a, b};
+### Deadlock Prevention Techniques
+
+#### 1. Lock Ordering
+
+The idea is simple yet powerful: ensure that all threads acquire locks in a predefined global order,
+regardless of their execution context.
+
+**Condition Broken:** Circular Wait
+
+If threads always acquire multiple locks in the same sequence (say A → B → C), the possibility of forming a
+cycle is eliminated, because no thread will ever wait on a lock held by another while holding a higher-order
+lock.
+
+> **Example:** R1 transfers to R2, and R2 transfers to R1.
+
+```java
+Resource[] locks = new Resource[] {a, b};
 // Sort by unique ID - guarantees a consistent global lock order
 Arrays.sort(locks, (x, y) -> Integer.compare(x.id, y.id));
 
@@ -3525,57 +3512,72 @@ synchronized (locks[0]) {
         // transfer the money
     }
 }
-Even though two threads are acquiring the same pair of resources in reverse order, Arrays.sort() ensures that lock acquisition always follows the same global order (by ascending resource ID).
+```
 
-2) tryLock() with Timeout
-Another effective technique to prevent deadlock is by using tryLock() with a timeout, provided by the java.util.concurrent.locks.Lock interface.
-Instead of waiting forever to acquire a lock, a thread tries to acquire it for a limited time only. If it fails, it backs off and optionally retries later. This prevents the system from getting stuck in a deadlock state.
-Condition Broken: Hold and Wait
+Even though two threads are acquiring the same pair of resources in reverse order, `Arrays.sort()` ensures
+that lock acquisition always follows the same global order (by ascending resource ID).
+
+#### 2. tryLock() with Timeout
+
+Another effective technique to prevent deadlock is by using `tryLock()` with a timeout, provided by the
+`java.util.concurrent.locks.Lock` interface. Instead of waiting forever to acquire a lock, a thread tries to
+acquire it for a limited time only. If it fails, it backs off and optionally retries later. This prevents
+the system from getting stuck in a deadlock state.
+
+**Condition Broken:** Hold and Wait
+
+```java
 static class Resource {
     final int id;
     final ReentrantLock lock = new ReentrantLock();
 
     public Resource(int id) { this.id = id; }
 }
-public static void tryTransfer(Resource a, Resource b) {
-        boolean acquiredA = false;
-        boolean acquiredB = false;
-        try {
-            acquiredA = a.lock.tryLock(100, TimeUnit.MILLISECONDS);
-            if (acquiredA) {
-                System.out.println(Thread.currentThread().getName() +
-                                   " locked Resource " + a.id);
-                Thread.sleep(50);
 
-                acquiredB = b.lock.tryLock(100, TimeUnit.MILLISECONDS);
-                if (acquiredB) {
-                    System.out.println(Thread.currentThread().getName() +
-                                       " locked Resource " + b.id);
-                    System.out.println("Transfer successful between " +
-                                       a.id + " and " + b.id);
-                } else {
-                    System.out.println(Thread.currentThread().getName() +
-                                       " could not lock Resource " + b.id +
-                                       " - backing off");
-                }
+public static void tryTransfer(Resource a, Resource b) {
+    boolean acquiredA = false;
+    boolean acquiredB = false;
+    try {
+        acquiredA = a.lock.tryLock(100, TimeUnit.MILLISECONDS);
+        if (acquiredA) {
+            System.out.println(Thread.currentThread().getName() +
+                               " locked Resource " + a.id);
+            Thread.sleep(50);
+
+            acquiredB = b.lock.tryLock(100, TimeUnit.MILLISECONDS);
+            if (acquiredB) {
+                System.out.println(Thread.currentThread().getName() +
+                                   " locked Resource " + b.id);
+                System.out.println("Transfer successful between " +
+                                   a.id + " and " + b.id);
             } else {
                 System.out.println(Thread.currentThread().getName() +
-                                   " could not lock Resource " + a.id +
+                                   " could not lock Resource " + b.id +
                                    " - backing off");
             }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            if (acquiredB) b.lock.unlock();
-            if (acquiredA) a.lock.unlock();
+        } else {
+            System.out.println(Thread.currentThread().getName() +
+                               " could not lock Resource " + a.id +
+                               " - backing off");
         }
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    } finally {
+        if (acquiredB) b.lock.unlock();
+        if (acquiredA) a.lock.unlock();
     }
 }
+```
 
-3. Minimize Nested Locking
-Deadlocks often occur when threads hold one lock and attempt to acquire another - this is known as nested locking. One way to reduce the risk of deadlocks is by minimizing such nested or recursive locking scenarios altogether.
-Condition Broken: Hold and Wait
+#### 3. Minimize Nested Locking
 
+Deadlocks often occur when threads hold one lock and attempt to acquire another — this is
+known as **nested locking**. One way to reduce the risk of deadlocks is by minimizing such
+nested or recursive locking scenarios altogether.
+
+**Condition Broken:** Hold and Wait
+
+```java
 class MinimizeNestedLocking {
 
     static class SharedResource {
@@ -3597,14 +3599,12 @@ class MinimizeNestedLocking {
         SharedResource resource1 = new SharedResource();
         SharedResource resource2 = new SharedResource();
 
-        // Thread 1 does operations separately to avoid nested locking
         Runnable task1 = () -> {
-            resource1.update(100);  // Lock 1 used and released quickly
+            resource1.update(100);
             try { Thread.sleep(50); } catch (InterruptedException ignored) {}
-            resource2.update(200);  // Lock 2 used separately
+            resource2.update(200);
         };
 
-        // Thread 2 also performs updates separately
         Runnable task2 = () -> {
             resource2.update(300);
             try { Thread.sleep(50); } catch (InterruptedException ignored) {}
@@ -3615,60 +3615,108 @@ class MinimizeNestedLocking {
         new Thread(task2, "T2").start();
     }
 }
+```
+
 Each thread locks and updates one resource at a time.
 
-Deadlock Handling Strategies (Used Commonly in Databases) - DETECT AND RESOLVE
-While deadlock prevention avoids the possibility altogether, database systems often prefer deadlock handling, which includes detecting and resolving deadlocks when they occur. Two classical schemes used are:
-1. Wait-Die Scheme (Non-Preemptive)
+---
+
+### Deadlock Handling Strategies (Detect and Resolve)
+
+While deadlock prevention avoids the possibility altogether, database systems often prefer **deadlock
+handling**, which includes detecting and resolving deadlocks when they occur. Two classical schemes are
+used:
+
+#### 1. Wait-Die Scheme (Non-Preemptive)
+
 The idea is to use timestamps or priorities to decide who waits and who gives up.
-How It Works:
-Every thread (or transaction) is assigned a timestamp when it starts (earlier = higher priority).
-When a thread T1 requests a lock that is already held by another thread T2, the decision is made based on their timestamps:
-If T1 has higher priority (started earlier than T2) - T1 waits.
-If T1 has lower priority (started after T2) - T1 dies (gets aborted and restarted later with the same timestamp).
-Characteristics
-Non-preemptive: The system doesn't forcibly remove locks.
-Prevents circular wait by favoring older transactions.
-Can lead to frequent rollbacks of younger transactions.
 
-2. Wound-Wait Scheme (Preemptive)
-The idea is to again use timestamps or priorities - but allow preemption this time.
-How It Works:
-Same priority rules based on timestamps.
-When a thread T1 requests a lock held by T2:
-If T1 has higher priority - T1 wounds T2 (forces T2 to release the lock and roll back).
-If T1 has lower priority - T1 waits.
-Characteristics
-Preemptive: Allows the system to forcibly roll back younger transactions.
-Reduces the number of rollbacks compared to Wait-Die.
-Works well in systems where older transactions are more important.
+**How It Works:**
 
-Conclusion:
-Deadlocks are a critical concern in any system that involves concurrency. While they may seem like edge cases during development, they often surface in high-load, real-world scenarios, making them both hard to predict and challenging to debug.
-Deadlocks are hard to debug and often happen under load.
-Use thread dumps to detect deadlocks in real applications.
+- Every thread (or transaction) is assigned a timestamp when it starts (earlier = higher priority).
+- When a thread T1 requests a lock that is already held by another thread T2, the decision is made based on
+  their timestamps:
+  - If T1 has higher priority (started earlier than T2) — **T1 waits**.
+  - If T1 has lower priority (started after T2) — **T1 dies** (gets aborted and restarted later with the
+    same timestamp).
 
-Proactively applying prevention techniques such as lock ordering, tryLock with timeout, and minimizing nested locking can help build safer and more responsive applications. For systems like databases, strategies like Wait-Die and Wound-Wait offer powerful recovery options.
+**Characteristics:**
 
-Producer Consumer Problem
+- **Non-preemptive:** The system doesn't forcibly remove locks.
+- Prevents circular wait by favoring older transactions.
+- Can lead to frequent rollbacks of younger transactions.
 
-The Producer-Consumer Problem, also known as the Bounded Buffer Problem, is a classic example of a multi-process synchronization issue. It revolves around coordinating two types of threads:
-Producers: which generate data and add it to a shared buffer.
-Consumers: which take data from the buffer and process it.
+#### 2. Wound-Wait Scheme (Preemptive)
 
-The core challenge lies in ensuring that producers don't add data when the buffer is full, and consumers don't try to remove data when the buffer is empty — all while avoiding race conditions and ensuring mutual exclusion and proper coordination between threads.
+The idea is to again use timestamps or priorities — but allow preemption this time.
+
+**How It Works:**
+
+- Same priority rules based on timestamps.
+- When a thread T1 requests a lock held by T2:
+  - If T1 has higher priority — **T1 wounds T2** (forces T2 to release the lock and roll back).
+  - If T1 has lower priority — **T1 waits**.
+
+**Characteristics:**
+
+- **Preemptive:** Allows the system to forcibly roll back younger transactions.
+- Reduces the number of rollbacks compared to Wait-Die.
+- Works well in systems where older transactions are more important.
+
+---
+
+### Deadlock — Conclusion
+
+Deadlocks are a critical concern in any system that involves concurrency. While they may seem like edge
+cases during development, they often surface in high-load, real-world scenarios, making them both hard to
+predict and challenging to debug.
+
+- Deadlocks are hard to debug and often happen under load.
+- Use **thread dumps** to detect deadlocks in real applications.
+
+Proactively applying prevention techniques such as **lock ordering**, **tryLock with timeout**, and
+**minimizing nested locking** can help build safer and more responsive applications. For systems like
+databases, strategies like **Wait-Die** and **Wound-Wait** offer powerful recovery options.
+
+---
+
+## Producer-Consumer Problem
+
+The **Producer-Consumer Problem**, also known as the **Bounded Buffer Problem**, is a classic example of a
+multi-process synchronization issue. It revolves around coordinating two types of threads:
+
+- **Producers:** which generate data and add it to a shared buffer.
+- **Consumers:** which take data from the buffer and process it.
+
+The core challenge lies in ensuring that producers don't add data when the buffer is full, and consumers
+don't try to remove data when the buffer is empty — all while avoiding race conditions and ensuring mutual
+exclusion and proper coordination between threads.
 
 This problem is a synchronization construct that ensures:
-Mutual Exclusion: Only one thread can access the shared buffer (critical section) at a time.
-Wait-Notify Coordination: Producers wait when the buffer is full; consumers wait when it's empty. Threads notify each other when buffer states change.
 
-wait() and notify() methods
-These two methods provide a built-in signaling mechanism to safely pause and resume threads based on the shared resource's state:
-wait(): Causes the current thread to pause and release the lock until another thread signals it using notify().
-notify(): Wakes up one waiting thread so it can try to re-acquire the lock and proceed.
-Can you also write a few sentences on how wait and notify methods in Java work and what is the equivalent of go in that? These are used for the producer-consumer problem, so how we can use the same or solve the producer-consumer in Java and how we can solve it in Go, and be brief about it? Together, they eliminate the need for busy waiting, reduce CPU usage, and help implement the wait-notify coordination pattern — a fundamental synchronization requirement in the producer-consumer scenario.
+- **Mutual Exclusion:** Only one thread can access the shared buffer (critical section) at a time.
+- **Wait-Notify Coordination:** Producers wait when the buffer is full; consumers wait when it's empty.
+  Threads notify each other when buffer states change.
 
+### `wait()` and `notify()` Methods
 
+These two methods provide a built-in signaling mechanism to safely pause and resume threads based on the
+shared resource's state:
+
+- **`wait()`:** Causes the current thread to pause and release the lock until another thread signals it
+  using `notify()`.
+- **`notify()`:** Wakes up one waiting thread so it can try to re-acquire the lock and proceed.
+
+Together, they eliminate the need for busy waiting, reduce CPU usage, and help implement the wait-notify
+coordination pattern — a fundamental synchronization requirement in the producer-consumer scenario.
+
+> **Personal note (TODO):** Write a few sentences on how `wait` and `notify` methods in Java work and what
+> is the equivalent in Go. These are used for the producer-consumer problem, so cover how to solve the
+> producer-consumer in Java and how to solve it in Go, briefly.
+
+### Solution 1: `synchronized` + `wait()` / `notifyAll()`
+
+```java
 class ProducerConsumer {
   Queue<Integer> buffer = new LinkedList<>();
   int capacity = 5;
@@ -3719,7 +3767,11 @@ class ProducerConsumer {
     notifyAll();
   }
 }
+```
 
+### Solution 2: `ReentrantLock` + Two `Condition` Variables
+
+```java
 class ProducerConsumerLock {
   Queue<Integer> buffer = new LinkedList<>();
   int capacity = 5;
@@ -3835,8 +3887,11 @@ class ProducerConsumerLock {
     }
   }
 }
+```
 
-Note(imp):
+### Important Note: What Happens Inside `wait()`
+
+```
 thread calls wait()
   └─ 1. atomically releases the monitor lock
   └─ 2. thread suspends (parked)
@@ -3845,10 +3900,18 @@ thread calls wait()
   └─ 5. fights for the lock against other threads (may block here)
   └─ 6. lock re-acquired ← happens INSIDE wait(), before it returns
 wait() returns ← you're back in your code, lock is already held again
-Same for condition.await() — it releases the ReentrantLock, parks, and when woken it internally calls lock.lock() (via AQS) before returning.
+```
 
-Dependecy injection
+Same for `condition.await()` — it releases the **ReentrantLock**, parks, and when woken it internally calls
+`lock.lock()` (via AQS) before returning.
 
+---
+
+## Dependency Injection
+
+### The Problem: Hardcoded Dependencies
+
+```java
 class OrderService {
     private InventoryService inventory = new InventoryService();
     private PaymentService payment = new RazorpayPayment();
@@ -3860,21 +3923,33 @@ class OrderService {
         notification.sendConfirmation(order);
     }
 }
+```
 
-Issues:
-1. Hardcoded Logic
-The OrderService is tightly coupled with specific implementations of the InventoryService, PaymentService, and NotificationService. This makes the code rigid. For example, if we want to switch from Razorpay to Stripe, we would need to manually change the code everywhere the RazorpayPayment class is used.
-2. Difficult to Test
-Since the dependencies (InventoryService, PaymentService, and NotificationService) are hardcoded within the OrderService class, it becomes extremely difficult to test the logic of OrderService in isolation.
-For example, if we want to test the checkout method, we would need to hit real payment APIs, which is not ideal for unit testing.
-3. Scalability Issues
-As the application grows, we may want to introduce more payment providers, different inventory systems, or notification services. Each time we add a new dependency, we need to modify the OrderService class, which creates scalability issues in larger systems.
+#### Issues with this approach
 
-In software design, a dependency refers to any object that a class needs in order to function properly. For example, in our earlier OrderService, the dependencies are InventoryService, PaymentService, and NotificationService. These services are needed for the OrderService to carry out its checkout operation.
-Definition
-Dependency Injection (DI) is a design pattern in which an object receives its dependencies from an external source rather than creating them itself.
-In simple terms, instead of creating objects directly inside a class, you "inject" them from outside.
+1. **Hardcoded Logic** — The `OrderService` is tightly coupled with specific implementations of the
+   `InventoryService`, `PaymentService`, and `NotificationService`. This makes the code rigid. For example,
+   if we want to switch from Razorpay to Stripe, we would need to manually change the code everywhere the
+   `RazorpayPayment` class is used.
+2. **Difficult to Test** — Since the dependencies are hardcoded within the `OrderService` class, it
+   becomes extremely difficult to test the logic of `OrderService` in isolation. For example, to test the
+   `checkout` method, we would need to hit real payment APIs, which is not ideal for unit testing.
+3. **Scalability Issues** — As the application grows, we may want to introduce more payment providers,
+   different inventory systems, or notification services. Each time we add a new dependency, we need to
+   modify the `OrderService` class, which creates scalability issues in larger systems.
 
+### Definition
+
+In software design, a **dependency** refers to any object that a class needs in order to function properly.
+For example, in our earlier `OrderService`, the dependencies are `InventoryService`, `PaymentService`, and
+`NotificationService`. These services are needed for the `OrderService` to carry out its checkout
+operation.
+
+**Dependency Injection (DI)** is a design pattern in which an object receives its dependencies from an
+external source rather than creating them itself. In simple terms, instead of creating objects directly
+inside a class, you "inject" them from outside.
+
+```java
 private InventoryService inventory;
 private PaymentService payment;
 private NotificationService notification;
@@ -3883,57 +3958,72 @@ private NotificationService notification;
 public OrderService2(InventoryService inventory,
                     PaymentService payment,
                     NotificationService notification) {
-this.inventory = inventory;
-this.payment = payment;
-this.notification = notification;
+    this.inventory = inventory;
+    this.payment = payment;
+    this.notification = notification;
 }
 
 // Injecting dependencies manually (Constructor Injection)
 OrderService2 orderService2 = new OrderService2(
-new InventoryService(),
-new RazorpayPayment(),
-new NotificationService()
+    new InventoryService(),
+    new RazorpayPayment(),
+    new NotificationService()
 );
 
 // Now, we can use the orderService2 to perform operations
 orderService2.checkout(order);
+```
 
-Advantages
-- swappable components
-- testable with mocks
-- Follows dependency inversion principle (D in SOLID)
-- Open to Extension, Closed to Modification
+#### Advantages
 
-Types of Dependency Injection (DI)
+- Swappable components
+- Testable with mocks
+- Follows the **Dependency Inversion Principle** (D in SOLID)
+- Open to extension, closed to modification
 
-1. Constructor Injection
-dependencies are passed to the class via the constructor. This ensures that the class is always instantiated with its required dependencies, which makes it easier to manage and test.
-- Immutable Dependencies:
-- Test-Friendly
-- ALways Ensures Required Dependencies
-Example: above code
+### Types of Dependency Injection
 
-2. Setter Injection
+#### 1. Constructor Injection
+
+Dependencies are passed to the class via the constructor. This ensures that the class is always
+instantiated with its required dependencies, which makes it easier to manage and test.
+
+- **Immutable Dependencies**
+- **Test-Friendly**
+- **Always Ensures Required Dependencies**
+
+Example: see code above.
+
+#### 2. Setter Injection
+
 This allows for mutable dependencies, meaning you can change the dependencies of the class at runtime.
-- Mutable dependcies
-- Less strict
-- can be misued. this might lead to situations where program might panic.
 
-public void setLogger(Logger logger){
+- **Mutable dependencies**
+- **Less strict**
+- Can be misused — this might lead to situations where the program might panic.
+
+```java
+public void setLogger(Logger logger) {
     this.logger = logger;
 }
 
 PaymentMethod paymentMethod = new RazorpayPayment();
-payMethod.setLogger(new ConsoleLogger());
+paymentMethod.setLogger(new ConsoleLogger());
+```
 
-3. Interface Injection
-In Interface Injection, the dependency provides an injector method that will inject the dependency into the class. This type is rarely used in practice and is typically only suitable for very specific cases.
+#### 3. Interface Injection
 
+In **Interface Injection**, the dependency provides an injector method that will inject the dependency
+into the class. This type is rarely used in practice and is typically only suitable for very specific
+cases.
+
+```java
 // Interface to inject PaymentService dependency
 public interface PaymentInjectable {
     // Method to inject PaymentService
     void injectPayment(PaymentService payment);
 }
+
 // Using Interface Injection
 public class OrderService implements PaymentInjectable {
     private PaymentService payment;
@@ -3941,22 +4031,28 @@ public class OrderService implements PaymentInjectable {
     // Inject PaymentService through the method
     @Override
     public void injectPayment(PaymentService payment) {
-        this.payment = payment; // Set the injected payment service
+        this.payment = payment;
     }
-
 
     public void checkout(Order order) {
         payment.process(order);
     }
 }
+```
 
-- Rarely Used:
-- Requires Interface Changes
-- Unnecessary Method Implementation: A drawback of Interface Injection is that every class implementing the interface is required to implement the injectPayment method, even if the class does not need a payment service. This can lead to unnecessary method definitions and potential code bloat in some cases.
+- **Rarely Used**
+- **Requires Interface Changes**
+- **Unnecessary Method Implementation:** Every class implementing the interface is required to implement
+  the `injectPayment` method, even if the class does not need a payment service. This can lead to
+  unnecessary method definitions and potential code bloat.
 
-Best way to implement for java
-Think of like record writer with congestion controller. record writer talks only interface level where as congestion controller implements the methods. we use builder method to pass a instance of congestion controller.
+### Best Way to Implement for Java
 
+> **Personal note:** Think of it like a record writer with a congestion controller. The record writer
+> talks only at the interface level whereas the congestion controller implements the methods. We use a
+> builder method to pass an instance of the congestion controller.
+
+```java
 // ── Contract: defines what the client needs, not how it is done
 interface NotificationService {
     void send(String message);
@@ -3987,7 +4083,7 @@ class UserService {
     }
 }
 
-// ── Composition Root: the only place where “new” keywords appear
+// ── Composition Root: the only place where "new" keywords appear
 class Main {
     public static void main(String[] args) {
         // Create the concrete dependency
@@ -4000,81 +4096,1294 @@ class Main {
         userService.register("raj");
     }
 }
+```
 
-When Dependency Injection is Not Needed
-While Dependency Injection (DI) is a powerful design pattern, it is not always necessary. Here are some situations where DI may not be needed:
-1. Tiny Classes with zero dependencies
-If a class is small and doesn't rely on any other services or components, there is no need to introduce DI. The simplicity of such classes doesn't justify the added complexity of dependency injection.
-2. Static utility classes:
-Static classes that provide utility functions (like string manipulation or date handling) don't require DI because they don't have any instance dependencies. Their behavior remains the same across all calls and does not change based on external factors.
-3. One-off scripts or tools
-For small, isolated scripts or tools used just once, the overhead of introducing DI might not be necessary. In such cases, simplicity and direct implementation may be more efficient than using a design pattern like DI.
+### When Dependency Injection is Not Needed
 
-When to Use Dependency Injection
+While Dependency Injection (DI) is a powerful design pattern, it is not always necessary. Here are some
+situations where DI may not be needed:
+
+1. **Tiny Classes with Zero Dependencies** — If a class is small and doesn't rely on any other services or
+   components, there is no need to introduce DI. The simplicity of such classes doesn't justify the added
+   complexity of dependency injection.
+2. **Static Utility Classes** — Static classes that provide utility functions (like string manipulation or
+   date handling) don't require DI because they don't have any instance dependencies. Their behavior
+   remains the same across all calls and does not change based on external factors.
+3. **One-off Scripts or Tools** — For small, isolated scripts or tools used just once, the overhead of
+   introducing DI might not be necessary. In such cases, simplicity and direct implementation may be more
+   efficient than using a design pattern like DI.
+
+### When to Use Dependency Injection
+
 It is best suggested to use Dependency Injection when you see the following symptoms:
-1. Classes use new for internal collaborators
-If classes are directly creating instances of their dependencies (using new), this tight coupling makes them hard to test and maintain. DI helps in breaking this coupling by injecting dependencies externally.
-2. Cannot mock services in tests
-When your classes create their dependencies internally, it becomes difficult to replace them with mock objects during testing. DI allows you to inject mock dependencies, making unit testing much easier.
-3. Adding feature branches old code
-If adding new features causes existing code to break or requires you to modify many parts of the system, it could be a sign of poor separation of concerns. DI helps by making dependencies more modular, reducing the impact of changes.
-4. Too many if statements to switch service type
-If your code is full of if or switch statements to handle different types of services or behaviors, DI can help by injecting the correct service implementation dynamically, based on the configuration or environment.
 
-Table for Symptoms and DI Solutions
-Symptom	Fix with DI
-Classes use new for internal collaborators	Constructor Injection
-Cannot mock services in tests	Inject dependency via interface
-Adding feature breaks old code	Use abstraction and inject
-Too many if / switch for service type	Inject strategy implementation
+1. **Classes use `new` for internal collaborators** — If classes are directly creating instances of their
+   dependencies (using `new`), this tight coupling makes them hard to test and maintain. DI helps in
+   breaking this coupling by injecting dependencies externally.
+2. **Cannot mock services in tests** — When your classes create their dependencies internally, it becomes
+   difficult to replace them with mock objects during testing. DI allows you to inject mock dependencies,
+   making unit testing much easier.
+3. **Adding features breaks old code** — If adding new features causes existing code to break or requires
+   you to modify many parts of the system, it could be a sign of poor separation of concerns. DI helps by
+   making dependencies more modular, reducing the impact of changes.
+4. **Too many `if` statements to switch service type** — If your code is full of `if` or `switch`
+   statements to handle different types of services or behaviors, DI can help by injecting the correct
+   service implementation dynamically, based on the configuration or environment.
 
-Note:
-With Framework DI, the DI process is handled automatically by the framework itself. In Spring, dependencies are injected using annotations like @Autowired or @Inject. This eliminates the need for manually wiring objects, making the code cleaner, more scalable, and easier to maintain. The framework takes care of creating and managing dependencies, reducing boilerplate code and improving application structure.
+#### Symptoms and DI Solutions
 
-Exception handling
+| Symptom | Fix with DI |
+| --- | --- |
+| Classes use `new` for internal collaborators | Constructor Injection |
+| Cannot mock services in tests | Inject dependency via interface |
+| Adding feature breaks old code | Use abstraction and inject |
+| Too many `if` / `switch` for service type | Inject strategy implementation |
 
-In our case, let's consider what happens when, after the user enters the OTP on the checkout page, the OTP is not delivered. The user is now stuck at the page with an error message such as, "Something went wrong", without any clear direction on how to proceed.
+> **Note:** With **Framework DI**, the DI process is handled automatically by the framework itself. In
+> Spring, dependencies are injected using annotations like `@Autowired` or `@Inject`. This eliminates the
+> need for manually wiring objects, making the code cleaner, more scalable, and easier to maintain. The
+> framework takes care of creating and managing dependencies, reducing boilerplate code and improving
+> application structure.
 
-This situation highlights the need for effective exception handling, as users encounter errors that prevent them from completing the checkout process. We'll see how exception handling can help manage such situations in the next section.
+---
 
-Impact of Poor Exception Handling
-- Failed transactions: can leave customers frustrated
-- Angry Customers: Users who encounter errors without clear information or a way to resolve the issue will likely become upset. This negative experience can drive them away from your platform, affecting customer loyalty.
-- Cart Abandonment: In e-commerce platforms like Amazon, users who experience issues at checkout, such as OTP failures, may abandon their shopping cart altogether. This leads to missed revenue opportunities.
-- Bad Public Relations (PR) : , they may share their frustrations on social media or review sites
+## Exception Handling
 
-Good Exception Handling Practices
-1. Show a Proper Error Message
-2. Log the Root Cause
-3. Trigger Alerts : Alerts, such as Slack notifications or PagerDuty alerts, should be triggered when critical issues occur. This ensures that the right team is immediately aware of the problem and can begin addressing it right away.
-4. Retry in Safe Flows (retry transient failures)
-4. Retry in Safe Flows
+Consider what happens when, after the user enters the OTP on the checkout page, the OTP is not delivered.
+The user is now stuck at the page with an error message such as "Something went wrong", without any clear
+direction on how to proceed.
 
-Approaches to Handle Errors
+This situation highlights the need for effective exception handling, as users encounter errors that
+prevent them from completing the checkout process. We'll see how exception handling can help manage such
+situations in the next section.
 
-1. Fail-Fast
-Pre-validation: A fail-fast system detects errors early and stops further execution to prevent invalid states. This approach ensures problems are caught quickly, making it easier to debug.
+### Impact of Poor Exception Handling
+
+- **Failed Transactions:** can leave customers frustrated.
+- **Angry Customers:** Users who encounter errors without clear information or a way to resolve the issue
+  will likely become upset. This negative experience can drive them away from your platform, affecting
+  customer loyalty.
+- **Cart Abandonment:** In e-commerce platforms like Amazon, users who experience issues at checkout,
+  such as OTP failures, may abandon their shopping cart altogether. This leads to missed revenue
+  opportunities.
+- **Bad Public Relations (PR):** They may share their frustrations on social media or review sites.
+
+### Good Exception Handling Practices
+
+1. **Show a Proper Error Message**
+2. **Log the Root Cause**
+3. **Trigger Alerts** — Alerts, such as Slack notifications or PagerDuty alerts, should be triggered when
+   critical issues occur. This ensures that the right team is immediately aware of the problem and can
+   begin addressing it right away.
+4. **Retry in Safe Flows** — retry transient failures.
+
+### Approaches to Handle Errors
+
+#### 1. Fail-Fast
+
+**Pre-validation:** A fail-fast system detects errors early and stops further execution to prevent invalid
+states. This approach ensures problems are caught quickly, making it easier to debug.
+
+```java
 public Product getProduct(String productId) {
     if (productId == null)
         throw new IllegalArgumentException("Product ID cannot be null");
     // fail-fast for invalid input
     return productRepo.find(productId);
 }
+```
 
-2. Fail-Safe
-Default: A fail-safe system continues running despite errors, using fallback mechanisms to minimize disruption. It ensures the system remains operational even when a failure occurs.
+#### 2. Fail-Safe
+
+**Default:** A fail-safe system continues running despite errors, using fallback mechanisms to minimize
+disruption. It ensures the system remains operational even when a failure occurs.
+
+```java
 try {
     return productRepo.find(productId);
 } catch (Exception e) {
     // fail-safe: return default
     return new Product("default", "Fallback Product");
 }
-- Sometimes Better user experience. (Eg: use guest profile if login fails.)
+```
 
-Aspect	Fail-fast	Fail-safe
-Error Detection	Immediately	At the point of critical failure
-Impact on System	Halts execution	Continues with fallback mechanisms
-User Experience	May disrupt the user	Minimizes disruption
-When to Use	Use when ensuring data integrity is crucial, such as in payment processing or financial transactions.	Use when the system must continue functioning even during a failure, such as in healthcare or transportation systems.
+- Sometimes Better user experience (e.g., use guest profile if login fails).
 
-Checked Exceptions
+#### Fail-Fast vs Fail-Safe
+
+| Aspect | Fail-fast | Fail-safe |
+| --- | --- | --- |
+| Error Detection | Immediately | At the point of critical failure |
+| Impact on System | Halts execution | Continues with fallback mechanisms |
+| User Experience | May disrupt the user | Minimizes disruption |
+| When to Use | Use when ensuring data integrity is crucial, such as in payment processing or financial transactions. | Use when the system must continue functioning even during a failure, such as in healthcare or transportation systems. |
+
+### Checked Exceptions
+
+In languages like Java, **Checked Exceptions** are exceptions that must be either caught (handled) using a
+`try-catch` block or declared in the method signature using the `throws` keyword.
+
+**Key Points:**
+
+- **Compiler Enforced Handling:** The compiler requires that the programmer either catch the exception
+  with a `try-catch` block or declare it in the method signature using the `throws` keyword.
+- **Recoverable Errors:** These exceptions generally occur in conditions that can be recovered from, such
+  as trying to open a file that doesn't exist, or failing to connect to a database. The programmer is
+  expected to handle these scenarios gracefully.
+
+**Examples in Java:**
+
+- `IOException` — Happens during file I/O operations, such as reading or writing a file that may not be
+  accessible.
+- `SQLException` — Thrown when there is a problem with the database connection or query execution.
+
+```java
+import java.io.*;
+
+class FileReaderExample {
+    public void readFile(String filePath) throws IOException {
+        FileReader reader = new FileReader(filePath);  // This may throw an IOException
+        BufferedReader bufferedReader = new BufferedReader(reader);
+        String line = bufferedReader.readLine();
+        System.out.println(line);
+        bufferedReader.close();
+    }
+
+    public static void main(String[] args) {
+        FileReaderExample example = new FileReaderExample();
+        try {
+            example.readFile("somefile.txt"); // Must handle the IOException
+        } catch (IOException e) {
+            System.out.println("An error occurred while reading the file: " + e.getMessage());
+        }
+    }
+}
+```
+
+The calling code (in the `main` method) must either handle the exception using a `try-catch` block or
+propagate it further.
+
+**When to Use Checked Exceptions:**
+
+- **External Resources:** When the program interacts with external resources like files, databases, or
+  networks, where errors are expected and can be handled.
+- **Recoverable Conditions:** When the program can recover from the exception by retrying the operation,
+  alerting the user, or attempting alternative methods.
+- **Client-Provided Input:** When the client (user or system) provides input, such as file paths,
+  database credentials, or network settings. If invalid input is provided, exceptions can occur, and the
+  program must handle these cases, often by prompting the user for corrections or fallback actions.
+
+### Unchecked Exceptions
+
+In languages like Java, **Unchecked Exceptions** are exceptions that do not need to be declared in the
+`throws` clause, nor do they require handling using `try-catch` blocks. They are subclasses of
+`RuntimeException` and are usually thrown due to issues in the code that should be fixed by the developer.
+
+Unchecked exceptions are typically used for errors that are beyond the control of the program's flow,
+such as null pointer references, array index out-of-bounds errors, or invalid type casts. These exceptions
+often signal that there is a bug in the code that needs to be fixed, rather than something that should be
+handled by error-handling mechanisms.
+
+### Custom Exceptions
+
+**Custom Exceptions** are user-defined exception classes tailored to your application's specific domain.
+Rather than relying on generic exceptions (like `IOException` or `NullPointerException`), custom
+exceptions allow you to define more meaningful, application-specific errors that align with your business
+logic.
+
+```java
+// Custom Exception
+class CustomerNotPlusException extends RuntimeException {
+    public CustomerNotPlusException(String userId) {
+        super("User " + userId + " is not a plus customer");
+    }
+}
+
+class CourseService {
+    public void accessCourse(String userId) {
+        if (!hasAccess(userId)) {
+            // Throwing the custom exception if the user doesn't have access
+            throw new CustomerNotPlusException(userId);
+        }
+        // continue enrollment...
+    }
+
+    private boolean hasAccess(String userId) {
+        // Logic to check if the user is a Plus customer from the database
+        return false;  // For the sake of this example, assume the user doesn't have access
+    }
+}
+```
+
+---
+
+## Building Resilient Systems
+
+### Error Handling vs Resilience
+
+**Error Handling** is the process of anticipating, detecting, and resolving issues during system
+execution. It ensures that a system responds to failure gracefully without corrupting data or collapsing
+the user experience. Effective error handling includes mechanisms for capturing errors, logging them, and
+providing meaningful feedback to users or system administrators.
+
+**Resilience** refers to the system's ability to absorb failure and continue operating. Robust systems
+recover from failure, while brittle systems crash. Resilience is not about avoiding failure but about
+surviving it and ensuring minimal disruption to service. A resilient system is designed to handle
+unexpected events, recover quickly from failures, and maintain a consistent user experience.
+
+#### Robust System vs Brittle System
+
+| Characteristic | Robust System | Brittle System |
+| --- | --- | --- |
+| System Behavior | Continues on demand gracefully. | Crashes or freezes. |
+| Error Handling | Shows cached content or provides degraded service. | Entire system halts on error. |
+| Example | Netflix showing cached content when the service is down. | Amazon checkout page crashes if payment service is down. |
+| User Experience | Minimizes disruption to the user experience. | User experience is severely disrupted. |
+| Recovery from Failures | Can recover or continue with limited functionality. | Fails completely with no fallback. |
+| Example Scenario | Amazon checkout page hides recommendation services when the checkout fails. | Amazon checkout fails when payment service is down. |
+
+### Graceful Degradation Strategies
+
+#### 1. Return Cached Data
+
+When a live service or an external API fails, the system can fall back on cached data to provide a
+seamless experience to the user. This strategy ensures that even if the primary service is unavailable,
+the system continues functioning using stored, potentially outdated, data.
+
+```java
+class RecommendationService {
+    public List<String> getRecommendedItems(String userId) {
+        try {
+            // Attempt to fetch live recommendations
+            return recommendationService.fetchLiveRecommendations(userId);
+        } catch (Exception ex) {
+            // If the live service fails, log the error and fall back to cache
+            log.warn("Live service failed, falling back to cache");
+            return cacheService.getCachedRecommendations(userId);  // Fallback to cached data
+        }
+    }
+
+    public List<String> fetchLiveRecommendations(String userId) {
+        return List.of("movie-1", "movie-2");  // Simulated live recommendation data
+    }
+}
+```
+
+#### 2. Show Fallback UI
+
+When a system or service becomes unavailable, it's crucial to ensure that users still have a meaningful
+experience. One of the ways to handle this is by showing a fallback UI.
+
+```java
+// Show fallback UI
+public Menu getMenu(String restaurantId) {
+    try {
+        // Attempt to fetch the live menu
+        return menuService.fetchMenu(restaurantId);
+    } catch (Exception e) {
+        // If the live menu is unavailable, show a fallback message in the UI
+        return new Menu("Menu currently unavailable. Please try again later.");
+    }
+}
+```
+
+This strategy ensures that users are not left staring at an empty screen or a broken interface. Instead,
+they are informed that the content they seek is temporarily unavailable, and they can try again later.
+
+This approach is effective for user-facing applications where it's essential to maintain a friendly and
+informative experience, even during downtime. Examples of fallback UI include error messages, loading
+spinners, or simplified versions of the content.
+
+> **Personal note:** One more example — payment failure in Swiggy → place order and pay later directly.
+
+#### 3. Queue Requests
+
+```java
+// Queue requests
+public void placeOrder(Order order) {
+    try {
+        // Attempt to charge the payment
+        paymentService.charge(order);
+    } catch (Exception e) {
+        // If payment fails, queue the order for retry
+        orderRetryQueue.enqueue(order);
+        log.warn("Payment failed. Queued for retry.");
+    }
+}
+```
+
+This ensures that, rather than rejecting the request immediately, the system can retry processing the
+payment later when the service is available again.
+
+The **queueing requests** strategy is ideal for handling intermittent failures in high-demand systems. It
+allows for non-disruptive operations, ensuring that operations are completed when the system can handle
+them, without burdening the user with error messages or failed transactions.
+
+### Retry Mechanisms
+
+#### 1. Naive Retry
+
+The naive retry mechanism simply retries an operation a fixed number of times when it fails. It works
+well when the service is expected to recover quickly, but it can lead to excessive load on the system if
+not handled carefully.
+
+```java
+// Naive retry example
+public String getETA() {
+    int retries = 3;  // Maximum retry attempts
+    while (retries-- > 0) {
+        try {
+            return etaService.getETA();  // Attempt to fetch ETA from service
+        } catch (Exception e) {
+            log.warn("Retrying ETA, attempts left: " + retries);
+        }
+    }
+    return "ETA unavailable";  // Return message if all retries fail
+}
+```
+
+#### 2. Backoff Strategy
+
+A more sophisticated approach is the **backoff strategy**, which adds a delay between retries, helping to
+reduce the load on the system and give the service time to recover. A common variation is **exponential
+backoff**, where the delay increases after each retry attempt.
+
+#### 3. Backoff with Jitter
+
+In addition to exponential backoff, adding a small random delay (**jitter**) to each retry can help
+prevent multiple clients from retrying at the same time. This reduces the risk of overwhelming the
+service and ensures that requests are spread out over time.
+
+#### Possibility of DDoS Due to Retry Mechanisms
+
+Consider this scenario: if many users are retrying failed requests at the same time, especially with
+short or no backoff periods, it can cause a significant spike in requests, overwhelming the system. This
+sudden surge in retries can lead to resource exhaustion, slower response times, and potentially system
+crashes, much like a DDoS attack.
+
+**Possible Solutions** — to avoid DDoS-like situations while using retry mechanisms:
+
+- Implement **exponential backoff** (as shown in the backoff strategy) to progressively delay retries,
+  preventing all users from retrying at once.
+- **Cap the number of retries** and set a maximum delay to prevent endless attempts in case of service
+  failure.
+- Use **circuit breakers** to detect persistent failures and stop retrying temporarily, allowing the
+  system to recover instead of continually hammering it with requests.
+- **Rate limit retries** from clients to ensure that not too many retries happen in a short time frame.
+
+By using these strategies, you can reduce the risk of unintentionally overwhelming your system and ensure
+the service remains available to all users.
+
+### Circuit Breaker Pattern
+
+The **Circuit Breaker Pattern** is a design pattern used to protect a system from repeatedly calling a
+failing service. Instead of constantly trying to invoke a failing service, the circuit breaker "opens"
+after a certain number of failures, blocking further attempts and allowing the system to continue
+operating. This prevents the system from overloading the failing service and gives it time to recover.
+
+What happens if a downstream service, such as a payment service, is constantly failing? If the system
+keeps calling the service, it can lead to wasted resources, further failure, and potentially impact the
+performance of other components. The Circuit Breaker Pattern addresses this by stopping the calls after a
+threshold is met, allowing the system to wait and retry later.
+
+The solution is to implement a circuit breaker that stops sending requests to the failing service after
+a threshold of failures. Once the service has had time to recover, the circuit breaker enters a
+**"half-open"** state to test the service's availability before fully restoring normal operations.
+
+#### States of Circuit Breaker
+
+- **Closed:** The service is working normally, and requests are being sent to the service.
+- **Open:** The service is failing consistently, and the circuit breaker stops sending requests to the
+  service.
+- **Half-Open:** After a defined timeout, the system sends a limited number of test requests to see if
+  the service has recovered. If these requests succeed, the circuit breaker returns to the "Closed"
+  state.
+
+Configure the circuit breaker using a bean and then use annotations on the service to use the circuit
+breaker with a fallback method.
+
+```java
+@Bean
+public Customizer<CircuitBreakerConfigCustomizer> paymentCircuitBreakerConfig() {
+    return CircuitBreakerConfigCustomizer.of("paymentService", builder -> builder
+        .slidingWindowSize(10)
+        .failureRateThreshold(50)
+        .waitDurationInOpenState(Duration.ofSeconds(10))
+        .permittedNumberOfCallsInHalfOpenState(2)
+        .automaticTransitionFromOpenToHalfOpenEnabled(true));
+}
+
+@Service
+class PaymentService {
+
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "paymentFallback")
+    public String charge(String userId, double amount) {
+        // real payment logic
+        return externalPaymentApi.charge(userId, amount);
+    }
+
+    // Fallback method in case of failure
+    public String paymentFallback(String userId, double amount, Throwable t) {
+        log.error("Payment Service Down. Fallback triggered.");
+        return "PAYMENT_FAILED";
+    }
+}
+```
+
+### Failover and Timeout Strategies
+
+#### 1. Timeout Strategy
+
+A **timeout** is a mechanism used to prevent long waits or hangs when a service becomes unresponsive.
+Instead of waiting indefinitely for a response, a timeout defines a maximum amount of time to wait
+before the request is aborted.
+
+**Example Use Case:** Imagine your frontend service calls a backend API to fetch user details. If that
+backend service is hanging (maybe due to a DB lock), your frontend should timeout in 2 seconds rather
+than wait endlessly, ensuring your UI remains responsive or shows a graceful error.
+
+#### 2. Failover Strategy (HA)
+
+**Failover** is the process of switching to a standby or alternative service when the primary one is
+unavailable or down. This is a proactive resilience strategy that ensures high availability and continued
+service delivery even when components fail.
+
+**Example Use Case:** If you have two payment gateways (say Razorpay and Stripe), and Razorpay is down,
+the system can automatically failover to Stripe to complete the transaction without the user even
+noticing.
+
+By combining **Timeouts** (to avoid hanging) and **Failovers** (to reroute the request), systems can
+maintain a smooth and fault-tolerant user experience even in the face of partial or complete component
+failures.
+
+### Resilience Summary
+
+1. **Temporary Spike**
+   - **Problem:** Sudden bursts in demand or traffic.
+   - **Solution:** Use **retry with backoff** to manage the load. This technique helps to handle spikes
+     by spacing out retries with a growing delay, reducing the strain on the system and giving it time
+     to recover.
+
+2. **Persistent Failure**
+   - **Problem:** A service or component that is consistently failing.
+   - **Solution:** Implement a **Circuit Breaker** to stop calling the failing service after a set
+     threshold. This allows the system to stop wasting resources and enter a recovery mode.
+
+3. **Third-party Delay**
+   - **Problem:** Delays caused by external services (e.g., APIs, cloud services).
+   - **Solution:** Use **Timeouts** to avoid waiting too long for responses from third-party services.
+     Setting an appropriate timeout ensures that your system doesn't hang indefinitely and can proceed
+     with a fallback.
+
+4. **Degraded Experience**
+   - **Problem:** System continues working, but with reduced functionality.
+   - **Solution:** Implement **Fallback UI on Cache**. When live data is unavailable, use cached data
+     or show a degraded user interface to ensure users still have access to important information.
+
+5. **Avoid Throttling**
+   - **Problem:** Excessive load on the system or external services due to too many simultaneous
+     requests.
+   - **Solution:** Use **Own Rate Limiting** to limit the number of requests your system can make to
+     external services within a specific time frame, ensuring that it doesn't overwhelm any single
+     service.
+
+6. **Highly Critical Services**
+   - **Problem:** Critical services must remain operational at all times.
+   - **Solution:** Implement **Failover Setup** to ensure that if one critical service goes down,
+     another backup service takes over seamlessly, ensuring high availability and minimal disruption.
+
+---
+
+## Best Practices in LLD
+
+### API Design, Versioning, and Security
+
+An **API** is a contract to communicate between services.
+
+- Should **not** rely on server-side sessions.
+- Strive for **consistency**, **predictability**, and **minimalism**.
+- Only allow the client to send what you want them to; do other handling on the server side.
+
+#### Important Phases of an API
+
+- **Design:** Define contracts using tools like OpenAPI (Swagger), including endpoints, methods, and
+  response schemas.
+- **Testing:** Perform integration and contract tests. Use mocks or stubs to decouple frontend/backend
+  development.
+- **Versioning / Maintenance:** Introduce changes carefully while maintaining backward compatibility.
+- **Deprecation:** Gradually phase out old versions with client communication and support periods.
+
+#### Advanced REST Guidelines
+
+- **HATEOAS (Hypermedia as the Engine of Application State):** Include links within responses to guide
+  client actions.
+- **Idempotency:** Ensure methods like `PUT` and `DELETE` are idempotent — calling them multiple times
+  has the same effect.
+- **Partial Updates:** Use `PATCH` for modifying partial resources instead of overwriting full objects.
+- **Validation:** Use schemas (like JSON Schema) to validate requests and responses.
+
+#### Handling Sensitive Operations
+
+- Use two-step confirmation or email verification for critical actions (e.g., password changes, fund
+  transfers).
+- Use HTTP `401` / `403` for unauthorized/forbidden access, not just `500` errors.
+- Encrypt sensitive query parameters and payloads — **never expose secrets via URLs**.
+
+### DTO Patterns – Designing Contracts
+
+**DTO (Data Transfer Object)** patterns help define strict contracts between API consumers and producers.
+DTOs are used to encapsulate data in both directions (requests and responses) and decouple internal
+models from external exposure.
+
+#### Best Practices for DTOs
+
+- **Validation:** Annotate DTOs with validation rules (e.g., required fields, formats).
+- **Encapsulation:** Never expose internal entity structures or unnecessary metadata.
+- **Separate Input and Output DTOs:** Avoid reusing the same object for requests and responses.
+- **Immutable Contracts:** Treat DTOs as contracts. Changing them should be versioned and communicated.
+
+### API Error Handling
+
+Use HTTP status codes consistently:
+
+- **2xx** — Success
+- **4xx** — Client error
+- **5xx** — Server error
+
+### API Versioning
+
+#### Common Versioning Strategies
+
+- **URI Versioning:** `/api/v1/users` (most explicit and commonly used).
+- **Header Versioning:** Custom headers like `X-API-Version: 1`.
+- **Media Type Versioning:** `Accept: application/vnd.company.v1+json`.
+
+#### Versioning Best Practices
+
+- Introduce breaking changes only in new versions.
+- Deprecate but support old versions with clear timelines.
+- Document changes and provide migration guides.
+
+### Filtering, Sorting, and Pagination (Important)
+
+#### Example Query Parameters
+
+- `?page=2&limit=50` — Pagination
+- `?sort=created_at&order=desc` — Sorting
+- `?status=active&type=premium` — Filtering
+
+#### Paginated Response Format
+
+```json
+{
+  "data": [],
+  "page": 2,
+  "limit": 50,
+  "totalItems": 320,
+  "totalPages": 7
+}
+```
+
+You can also use a **continuation token** for pagination.
+
+### API Security, Throttling, and Rate Limiting
+
+APIs must be secure by default. A compromised API can lead to data leaks, financial losses, or service
+downtime.
+
+#### Security Best Practices
+
+- **Authentication:** Use OAuth2, API keys, or JWTs for authenticating clients.
+- **Authorization:** Use role-based or permission-based access control.
+- **Input Validation:** Sanitize all inputs to prevent SQL injection or XSS.
+- **HTTPS Everywhere:** All traffic should be encrypted using TLS.
+
+#### Throttling & Rate Limiting
+
+- **Rate Limits:** Limit clients to a set number of requests per second/minute.
+- **Throttling:** Temporarily slow down or block clients exceeding thresholds.
+- **Quota Enforcement:** Monthly API usage caps for users, teams, or apps.
+
+#### Response Example for Rate Limiting
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+
+{
+  "error": "Too many requests. Please retry after 60 seconds."
+}
+```
+
+### Lifecycle Across Teams
+
+- **Contract:** Backend defines DTO and OpenAPI spec → frontend uses mock server.
+- **Dev/Test:** Backend builds controller and service → frontend starts using them.
+- **Integration Testing:** Backend validates contract and frontend ensures consistency.
+
+---
+
+## Database Design and Integration in LLD
+
+### What is an ER Model?
+
+The **Entity-Relationship (ER) Model** is a high-level conceptual data model used to define data elements
+and their relationships for a given system. It provides a visual representation through ER diagrams.
+We can eventually build classes if we start with the ER model.
+
+> **Problem Statement:** A user might initiate a payment promotion. The payment might succeed or fail. In
+> the case of the success of the transaction, the transaction may have rebates. Payments may be made
+> through different modes.
+
+#### Core Concepts
+
+- **Entities:** Real-world objects or concepts (e.g., `User`, `Transaction`, `Merchant`).
+- **Attributes:** Properties of entities (e.g., `User` may have `user_id`, `email`, `KYC_status`).
+- **Relationships:** Connections between entities (e.g., `User` initiates a `Transaction`).
+
+#### Use-case Example – Razorpay
+
+- **Entities:** `User`, `Merchant`, `Payment`, `Invoice`
+- **Relationships:** User → makes → Payment, Merchant → receives → Payment
+
+### How to Design Tables from Requirements?
+
+Once entities and relationships are identified, translate them into relational tables.
+
+#### Steps
+
+1. Extract entities from requirements.
+2. Define attributes for each entity.
+3. Determine primary and foreign keys.
+4. Normalize the schema (1NF, 2NF, 3NF).
+5. Add constraints and indexes.
+6. Define relationships between tables (e.g., user will initiate payment, and payment will be made to
+   merchant).
+7. Define relationship type cardinality (one-to-one, one-to-many, many-to-many).
+
+#### Example – Razorpay Payment Flow
+
+**Requirement:** A user pays a merchant through a payment gateway using a payment method.
+
+```sql
+users(user_id(pk), name, email, phone)
+merchants(merchant_id(pk), name, business_type)
+payments(payment_id(pk), user_id(fk), merchant_id(fk), amount, method, timestamp)
+payment_methods(method_id(pk), type, provider)
+transactions(transaction_id(pk), payment_id(fk), payment_method_id(fk), amount, status, timestamp)
+refunds(refund_id(pk), transaction_id(fk), amount, status, timestamp)
+```
+
+**Cardinality:**
+
+| Entity | Relationship |
+| --- | --- |
+| User | One user → many payments |
+| Merchant | One merchant → many payments |
+| Payment | Many payments → one user, one merchant, one payment method |
+| Transaction | Many transactions → one payment method |
+| Refund | One refund → one transaction |
+| PaymentMethod | One payment method → many payments |
+
+### Mapping ER → Class Model
+
+To integrate database design into the application layer, ER diagrams are mapped to object-oriented class
+models.
+
+#### Mapping Principles
+
+- Each **entity** → becomes a class.
+- Each **attribute** → becomes a field.
+- **Relationships** → become associations (one-to-one, one-to-many, many-to-many).
+
+#### Example – Razorpay Class Model (Java)
+
+```java
+class User {
+    Long id;
+    String name;
+    String email;
+    List<Payment> payments; // A user can have many payments
+}
+
+class Payment {
+    Long id;
+    User user;
+    Merchant merchant;
+    Double amount;
+    String method;
+    List<Transaction> transactions; // A payment can have many transactions
+    List<Refund> refunds; // A payment can have many refunds
+}
+// ... so on and so forth.
+```
+
+### What is DAO?
+
+**DAO (Data Access Object)** is a design pattern that abstracts and encapsulates all access to the data
+source. It separates persistence logic from business logic.
+
+#### Benefits
+
+- Loose coupling between database and code.
+- Easier to test and maintain.
+- Encourages separation of concerns.
+
+#### Example – Java DAO Interface
+
+> **Only basic CRUD operations.**
+
+```java
+public interface PaymentDAO {
+    Payment getPaymentById(Long id);
+    List<Payment> getPaymentsByUser(Long userId);
+    void save(Payment payment);
+}
+```
+
+> Too low level for business logic.
+
+### What is Repository?
+
+The **Repository** pattern is an abstraction that provides a collection-like interface for accessing
+domain objects. It is often used with ORMs like Spring Data JPA.
+
+It allows us to do complex joins and provides high-level, intent-based APIs.
+
+#### Key Differences: DAO vs Repository
+
+| Feature | Data Access Object (DAO) | Repository |
+| --- | --- | --- |
+| Focus | Data-centric. Wraps around a specific data source (e.g., a database table). | Domain-centric. Acts like an in-memory collection of domain objects (Aggregate Roots). |
+| Abstraction Level | Low-level. Direct interface over a data source like SQL, LDAP, or an API. | High-level. Mediates between the domain and data mapping layers. |
+| Language | Uses data-driven terminology: `insert`, `update`, `delete`. | Uses domain-driven terminology: `add`, `remove`, `getBySpecification`. |
+| Implementation | Often a 1:1 mapping to database tables or views. | Can aggregate data from multiple DAOs or external services to build a single domain object. |
+
+#### Example – Spring Repository
+
+> **Complex operations are handled by the Repository.**
+
+```java
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+    List<Payment> findByUserId(Long userId);
+    PaymentDetails getFullPaymentDetails(Long paymentId);
+    void markPaymentAsFailed(Long paymentId);
+}
+```
+
+```text
+getFullPaymentDetails(Long paymentId) {
+  => fetch payment details, transaction details, refund details, payment method details.
+  -> join payments, transactions, refunds, payment methods.
+  -> return a single object.
+}
+```
+
+### When to Use Which?
+
+- Use **DAO** when your application performs simple CRUD operations directly on tables and doesn't have
+  complex domain models.
+- Use **Repository** when following Domain-Driven Design to maintain consistency with business rules and
+  encapsulate complex logic.
+- **Hybrid Approach:** In complex systems, a Repository often uses one or more DAOs internally to fetch
+  raw data before converting it into a rich domain object.
+
+### Real-World Enhancements and Practices
+
+Building scalable systems involves more than just ER modeling. Here are industry practices for robust
+systems:
+
+- **Read/Write Optimization:** Use replicas for reads, batch inserts for writes.
+- **Caching Layer:** Use Redis or Memcached to store frequently accessed data.
+- **Auditing and Logging:** Store transaction logs and enable change data capture (CDC).
+- **Security Best Practices:** Encrypt sensitive fields and use role-based access control (RBAC).
+- **Schema Versioning:** Use Flyway or Liquibase for migrations.
+- **Testing and Monitoring:** Write integration tests and use tools like Grafana / Prometheus for DB
+  monitoring.
+
+---
+
+## Strategic Guide: Approaching an LLD Interview
+
+### Interview Formats
+
+#### Format 1 — Quick Discussion (30–60 min)
+
+- Short and mixed with OOPs, SOLID, design patterns, DRY, KISS, YAGNI, etc.
+- Sometimes they ask about multithreading.
+- Not much time to go deep into one problem.
+- At most you can write some code.
+
+#### Format 2 — Machine Coding (60–120 min)
+
+- Open-ended discussion. No right or wrong.
+- Machine coding.
+- Design something — they give a list of functional requirements.
+- End of discussion, give them running code. Can fake DBs but flow should be running.
+
+#### Format 3 — Pure Design (60–120 min)
+
+- Example: "Design a BookMyShow."
+- No coding. Mainly need to design.
+- Always clarify the reason behind design choices.
+
+### Time Breakdown
+
+| Step | Time |
+| --- | --- |
+| Clarify requirements | 3–5 min |
+| Identify core entities | 5–10 min |
+| Visualize interaction flow | 5 min (since most times we get familiar systems) |
+| Define class structures and relationships | 15–20 min |
+| Define core use cases and methods | 10–15 min |
+| Apply design patterns and handle edge cases | 5–10 min |
+| Class diagram and package structure | 5–10 min |
+| Discuss future add-ons | 5–10 min |
+| **Total** | **60–90 min** |
+
+> **Personal note:** Should be done in around 60 mins; rest is based on requirements you can do.
+
+### Step 1: Clarify Requirements
+
+#### A. Functional Requirements
+
+Functional requirements define the core features and functionality of the system. These are the behaviors
+and processes that the system must perform. Essentially, these requirements answer the question:
+**What should the system do?**
+
+**For example:**
+
+- In an **e-commerce system**, functional requirements could include the ability to browse products, add
+  items to the cart, and process payments.
+- In a **parking lot system**, functional requirements could include the ability to park a car, remove a
+  car, or check the parking space availability.
+
+**Key Points:**
+
+- Focus on main features.
+- Mention any specific workflows.
+- Identify constraints or business rules that need to be followed.
+
+#### B. Non-Functional Requirements
+
+Non-functional requirements are the qualities or characteristics of the system, rather than specific
+behaviors. They define **how well** the system performs its functions. These are just as important as
+functional requirements because they address system performance and scalability.
+
+**Examples:**
+
+- **Scalability:** Can the system handle an increasing number of users or transactions?
+- **Latency:** How fast should the system respond to user requests?
+- **Availability:** How often should the system be available? Is there an acceptable downtime window?
+- **Security:** Are there specific measures in place for data protection, authentication, and
+  authorization?
+
+**Key Points:**
+
+- Include metrics that define system performance.
+- Consider scalability, availability, reliability, and performance.
+- Focus on how well the system can handle growth or high demand.
+
+#### C. Hero Use Cases
+
+**Hero use cases**, also known as primary use cases, define the most critical and frequent paths through
+the system. These are the scenarios where the system is used in its most straightforward and impactful
+manner. Focusing on hero use cases ensures that the most essential parts of the system are well-defined
+and thoroughly considered in the design.
+
+**For Example:**
+
+- For an **e-commerce site**: The hero use case might be a user searching for a product and making a
+  purchase.
+- For a **parking lot system**: The hero use case could be parking a car and retrieving it when needed.
+
+**Key Points:**
+
+- Identify the primary users and actions that occur most frequently.
+- These use cases drive the core functionality of the system.
+- These should be clear and error-free to avoid misunderstandings.
+
+By clearly outlining and understanding these requirements, you ensure a solid foundation for the design
+process, helping you avoid costly mistakes and unnecessary features later in the interview.
+
+### Step 2: Identify Core Entities
+
+#### A. Define All Core Domain Entities Relevant to the System
+
+- In a **movie streaming system**, core entities could include `User`, `Movie`, and `Subscription`.
+- In a **parking lot system**, the core entities might be `Car`, `ParkingSlot`, and `Ticket`.
+
+**Key Points:**
+
+- Identify entities central to the problem.
+- Clarify the role each entity plays in the system.
+- Avoid introducing too many irrelevant entities at this stage.
+
+#### B. Include Attributes, Responsibilities, and Relationships Between Entities
+
+- **Attributes:** Properties or characteristics of the entity. For example, a `User` might have
+  attributes like `userID`, `name`, `email`, and subscription status.
+- **Responsibilities:** Tasks or operations the entity must perform. For a `Movie`, its responsibility
+  might be to store information about its title, genre, and duration.
+- **Relationships:** How entities interact with each other. For example, a `User` can have a
+  `Subscription`, and a `Movie` might belong to a `Genre`.
+
+**Key Points:**
+
+- Attributes define the data associated with each entity.
+- Responsibilities describe what each entity must be able to do.
+- Relationships outline how entities work together or depend on each other.
+
+#### C. Mention Auxiliary / Supporting Entities If Required
+
+In addition to the core entities, there might be auxiliary or supporting entities that help manage
+auxiliary functionality or provide additional context. These entities are not central to the core
+functionality of the system, but they support the operations of core entities.
+
+**For Example:**
+
+- In a **movie streaming system**, supporting entities might include `Actor` or `Director`.
+- In a **parking lot system**, supporting entities could be `ParkingFee` or `Payment`.
+
+### Step 3: Visualize Interaction Flow
+
+> **Personal note:** Don't think so much. Break down into smaller sections and visualize each flow.
+
+#### A. Describe Who Interacts with Whom During Interactions
+
+This includes both internal system services and external systems interacting with each other, and most
+importantly, how users interact with the system.
+
+**Key Points:**
+
+- Identify the entities involved in each interaction (e.g., user, system services, external services).
+- Clarify how data or requests flow between entities.
+- Determine the sequence of actions that take place during an interaction.
+
+#### B. Use Sequence Flows, Flowcharts to Show Interactions
+
+- **Internal Service Interactions:** How internal services communicate with one another within the
+  system (e.g., service calls, internal processing).
+- **External System Calls:** Illustrating interactions with external systems such as payment gateways,
+  third-party services, or notification systems. This includes any API calls or external communication
+  initiated from the system.
+
+#### C. System Interactions with Users
+
+**Key Points:**
+
+- Identify all user actions that trigger system responses.
+- Map out how the system should behave in response to user inputs.
+- Ensure that the system feedback is clear and aligned with user expectations.
+
+#### D. External System Calls
+
+It's also important to account for interactions with external systems that are crucial for your
+application's functionality. These calls are essential for extending the system's capabilities, such as
+payments, notifications, and data exchanges. For example:
+
+- **Payment Gateway:** The system will interact with external payment gateways to process transactions
+  securely.
+- **Notifications:** External systems might be used to send notifications (e.g., email or SMS) to users
+  based on system events.
+
+**Key Points:**
+
+- Define all external systems the application will interact with.
+- Ensure that the system handles these calls securely and efficiently.
+- Account for any potential latency or failure in external calls and design fallback mechanisms.
+
+### Step 4: Define Class Structures and Relationships
+
+#### A. Use OOP and SOLID Principles
+
+**Key Points:**
+
+- Leverage OOP principles for structuring code and defining class responsibilities.
+- Apply SOLID principles to ensure scalability and maintainability.
+
+#### B. Include Interfaces, Abstract Classes, and Concrete Implementations
+
+In the design, it's essential to define the structure of each class, separating the interfaces, abstract
+classes, and concrete implementations. Interfaces and abstract classes define the contract and behavior
+of the classes, while concrete implementations provide the actual logic. For example:
+
+- **Controller Layer:** This is where user requests are handled. The controller accepts requests,
+  processes them, and passes them to the service layer for further processing.
+- **Service Layer:** This layer contains the business logic of the system. It performs operations and
+  manipulations based on the requests it receives from the controller.
+- **Repository Layer (or DAO layer):** This layer is responsible for handling data access logic. It
+  interacts with databases or other data sources to fetch or persist data.
+- **Domain Models:** These represent the core business objects and data structures in the system
+  (e.g., `User`, `Movie`, `Order`).
+
+**Key Points:**
+
+- Use interfaces to define contracts between layers.
+- Define abstract classes for shared behavior.
+- Concrete implementations should provide the actual logic based on the defined interfaces / abstract
+  classes.
+- Flow: **Controller → Service → Repository → Database**, all tied to domain models.
+
+#### C. Apply Design Principles for Scalability and Extensibility
+
+- **Loose coupling** means that classes should not depend heavily on one another. Changes in one class
+  should have minimal impact on others.
+- **High cohesion** means that a class should be focused on a specific task or responsibility, making it
+  easier to understand and maintain.
+
+Additionally:
+
+- Use abstractions for third-party integrations (e.g., payment gateways, external APIs).
+- Ensure modularity by organizing code into smaller, manageable components that represent business
+  logic.
+
+#### D. Prepare the Design for Production Scale
+
+Finally, it's essential to prepare the design for production. This means considering how the system will
+perform under load, how it will handle failures, and how it will scale to accommodate more users or
+data. By designing with scalability in mind, you ensure the system can grow without significant
+rewrites.
+
+**Key Points:**
+
+- Consider scalability by planning how to handle increased traffic, larger datasets, and additional
+  features.
+- Ensure fault tolerance to handle failures gracefully and maintain system uptime.
+- Design for maintainability to ensure that the system can be updated easily as requirements evolve.
+
+### Step 5: Define Core Use Cases and Methods
+
+#### A. For Every Major Feature, Define
+
+For each of the core features, define the essential aspects that guide how the system should function.
+This includes:
+
+- **Method Responsibilities:** Every method in the system should have a clear responsibility. Define
+  what each method does, what parameters it needs, and what it returns.
+- **I/O Models:** Specify the input and output models used for interaction. This could include how data
+  is received from the user and how it is returned or displayed.
+- **Collaborating Classes:** Identify which classes need to collaborate for each feature to work. For
+  example, the controller might collaborate with the service and repository layers to process requests
+  and interact with the database.
+- **Transaction Flow:** Define the transaction flow for key processes, such as how data moves through
+  the layers and how different components interact during the execution of each feature.
+
+#### B. Include Use Cases Like
+
+- **Create, Update, Delete, Fetch Operations:** These are basic CRUD operations that form the backbone
+  of system functionality. Every system should be able to create, update, delete, and fetch data as
+  required.
+- **Real-Time Flows:** Some use cases require real-time operations, such as seat locking in booking
+  systems, or updating order statuses in an e-commerce system. These should be handled with care to
+  ensure timely and efficient execution.
+- **Background Tasks:** Certain system tasks may run asynchronously in the background, such as
+  processing payment transactions or sending emails. These tasks are typically not user-facing but are
+  critical to maintaining the system's overall function.
+
+### Step 6: Apply Design Patterns
+
+#### A. Mention Clearly Which Design Patterns and Why
+
+For each major component or feature in the system, choose appropriate design patterns to guide your
+solution. It is important to not only apply a design pattern but also to understand why you are using
+it. The right design pattern can improve system scalability, reduce complexity, and help make the system
+more maintainable.
+
+**Examples of common design patterns:**
+
+- **Singleton Pattern:** Useful when you need to ensure that a class has only one instance and provides
+  a global point of access to that instance.
+- **Factory Pattern:** Ideal for creating objects without specifying the exact class of object that will
+  be created. This helps in decoupling the code from specific classes.
+- **Observer Pattern:** Useful for designing a subscription mechanism where one object (the subject)
+  notifies other objects (observers) about changes in its state.
+- **Strategy Pattern:** Useful when you need to select one of many algorithms at runtime. It defines a
+  family of algorithms, encapsulates each one, and makes them interchangeable.
+
+#### B. Reinforce Adherence to Clean Code Practices
+
+Clean code practices include:
+
+- **Meaningful Naming:** Use descriptive names for classes, methods, and variables so that their purpose
+  is immediately clear.
+- **Consistent Formatting:** Follow a consistent code style for indentation, spacing, and line breaks.
+- **Modularity:** Break down the system into small, independent components that are easy to test and
+  maintain.
+- **Documentation:** Document complex or critical parts of the system to ensure that future developers
+  can easily understand them.
+
+### Step 7: Handle Edge Cases
+
+#### A. Discuss Edge Cases, Failure Scenarios, and System Limits
+
+It's important to anticipate and address the various edge cases that can arise in the system. These
+include unusual or rare situations that may not occur often but can cause system failures if not handled
+properly. Common edge cases include:
+
+- **Concurrency Issues:** Problems that occur when multiple processes or threads attempt to access
+  shared resources at the same time. This can lead to race conditions, deadlocks, or data
+  inconsistency.
+- **State Management:** Managing the state of the system can be complex, especially when dealing with
+  partial updates or failures. It's important to ensure that the system remains consistent even in the
+  event of state inconsistencies.
+- **Partial Failures:** A system may not always fail completely but could experience partial failures.
+  For example, one part of the system may fail while others continue working. Handling partial failures
+  gracefully ensures that the system remains available to users even when parts of it are down.
+- **Retry Handling and Idempotency:** If an operation fails, the system should be able to retry the
+  operation without causing additional issues. Ensuring that operations are idempotent, meaning they
+  can be retried without side effects, is critical for reliability.
+
+#### B. Discuss Mitigation Strategies
+
+To deal with the challenges of edge cases, you should implement mitigation strategies that can handle or
+minimize the impact of failures. Common strategies include:
+
+- **Locks, Cache Invalidation, Compensation:** These techniques help manage concurrency, ensure data
+  consistency, and allow the system to recover from failures. For example, locks prevent multiple
+  processes from modifying the same data simultaneously, while cache invalidation ensures that stale
+  data is not used.
+- **Consistency vs. Availability Trade-Offs:** Systems often face the challenge of balancing
+  consistency and availability. For example, in a distributed system, maintaining strong consistency
+  can reduce availability, while prioritizing availability may allow inconsistent data to be
+  temporarily served. The trade-offs should be carefully considered based on the specific needs of the
+  system.
+
+### Step 8: Class Diagram and Package Structure
+
+> Probably won't ask but good to know.
+
+#### A. Class Diagram
+
+The class diagram visually represents the system's classes, their attributes, methods, and the
+relationships between them. This diagram helps in understanding the overall architecture and ensuring
+that the system is modular and well-organized. Key relationships in the diagram include **inheritance**,
+**composition**, and **associations** between classes.
+
+#### B. Package Structure
+
+Organizing the system into packages helps in keeping the codebase modular and maintainable. Group
+related classes into packages based on their functionality, making the system easier to navigate and
+extend.
+
+**Consider organizing by:**
+
+- **Layered Structure:** Organize packages based on the layers of your system, such as the controller,
+  service, repository, and domain layers.
+- **Feature-Based Structure:** Organize packages by features or modules, such as user management,
+  payment, etc.
+- **Utility or Helper Packages:** Group utility classes or helpers into separate packages to promote
+  reusability.
+
+### Step 9: Discuss Future Add-ons
+
+> Probably won't ask but good to know.
+
+#### A. Identifying Potential Add-ons
+
+When discussing future add-ons, it's important to identify potential features or functionalities that
+could be integrated into the system in the future. These could be driven by user feedback, market
+demands, or system performance requirements.
+
+**Examples of possible add-ons:**
+
+- **Integration with third-party services:** Adding payment gateways, social media authentication, or
+  email notification systems.
+- **Scalability Enhancements:** Adding load balancing, caching mechanisms, or improved database
+  architectures for handling more traffic.
+- **New Functionalities:** Adding features like search functionality, data analytics, or machine
+  learning algorithms for predictions.
+
+#### B. Ensure Extensibility in Design
+
+When designing the system, make sure that the architecture allows for future extensions with minimal
+effort. Using design patterns, modular architecture, and proper abstraction layers helps ensure that
+future additions do not disrupt the current functionality.
+
+**Key Points:**
+
+- Use design patterns like Factory, Singleton, or Observer to ensure extensibility.
+- Maintain clear separation of concerns to make future modifications easier.
+- Test add-ons to ensure they integrate seamlessly with the existing system.
+
+---
+
+## FAQs and Common Doubts
+
+As you approach your system design interview, it's common to have some lingering doubts. Addressing
+frequently asked questions (FAQs) can help clarify these and ensure you are fully prepared for the
+interview. Below are some common questions you might encounter and tips to handle them effectively.
+
+### 1. How much detail should I go into?
+
+> **DO NOT GO INTO FUNCTIONAL REQUIREMENTS THAT ARE NOT ASKED.**
+
+While discussing your design, it's essential to strike a balance between providing enough detail and
+staying focused on the high-level design. Start by outlining the major components and their interactions,
+then drill down into the specifics only when necessary. Don't over-explain trivial details but ensure
+that crucial aspects are covered, such as data flow, class responsibilities, and key interactions.
+
+**Key Points:**
+
+- Provide a high-level overview first and dive deeper when needed.
+- Don't get lost in unnecessary details, but be ready to answer any questions.
+
+### 2. Should I write code during the discussion?
+
+Writing code during the interview is generally not recommended unless explicitly asked to do so. Focus on
+the design discussion and high-level architecture first. Use pseudocode or diagrams to illustrate your
+ideas, and save actual coding for the implementation phase if requested. However, be ready to discuss
+how you would translate your design into code.
+
+**Key Points:**
+
+- Focus on design and architecture during the discussion.
+- Use pseudocode to describe the algorithm and logic if needed.
+
+### 3. How much business logic should I implement?
+
+In a system design interview, your goal is to focus on the overall system architecture rather than
+implementing the business logic in detail. Discuss how you would handle key aspects of the logic, but
+don't get bogged down in the minutiae. Acknowledge that business logic can be implemented later in the
+service layer and explain its role in the system.
+
+**Key Points:**
+
+- Describe how you would implement business logic in the service layer.
+- Focus on the system design rather than writing detailed business logic.
+
+### 4. Which patterns to use?
+
+During system design, knowing which design patterns to apply is crucial. Certain patterns are more
+appropriate for specific problems. Below are some common patterns you can use:
+
+- **Strategy Pattern:** Use for pricing or selection logic.
+- **Factory Pattern:** Ideal for object creation.
+- **Observer Pattern:** Use for event handling or notification systems.
+- **Repository Pattern:** Great for handling data access operations.
+- **Adapter Pattern:** Useful when integrating with third-party services.
+
+**Key Points:**
+
+- Choose design patterns based on the problem you are solving (e.g., pricing, event handling, data
+  access).
+- Justify your pattern choice based on system requirements and scalability.
+
+### 5. What do interviewers judge you on?
+
+Interviewers generally assess several key areas during a system design interview:
+
+- **Handling Edge Cases:** Ability to identify and address edge cases and failure scenarios.
+- **OOP, SOLID Principles:** Understanding and applying object-oriented principles and the SOLID design
+  principles.
+- **System Design:** How well you can structure and design the system architecture for scalability and
+  performance.
+
+**Key Points:**
+
+- Focus on designing a system that can scale and handle edge cases.
+- Ensure your design follows OOP and SOLID principles for maintainability.
+
+---
+
+*Keep adding new sections below as you learn more.*
